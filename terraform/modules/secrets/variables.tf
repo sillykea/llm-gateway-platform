@@ -18,3 +18,9 @@ variable "service_account" {
   type        = string
   default     = "external-secrets"
 }
+
+variable "additional_secret_arns" {
+  description = "Other secrets (encrypted with this module's key) the reader may access, e.g. the Redis auth token."
+  type        = list(string)
+  default     = []
+}

@@ -2,10 +2,29 @@
 # with the AWS CLI (docs/runbook.md), so they never appear in Terraform state
 # or in the repository.
 
+data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
+
+data "aws_iam_policy_document" "this_key" {
+  #checkov:skip=CKV_AWS_111:Standard KMS key policy root statement
+  #checkov:skip=CKV_AWS_109:Standard KMS key policy root statement
+  #checkov:skip=CKV_AWS_356:Resource "*" in a key policy refers to the key itself
+  statement {
+    sid       = "AccountAdmin"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
+}
+
 resource "aws_kms_key" "this" {
   description             = "Encrypts ${var.name}"
   deletion_window_in_days = 30
   enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.this_key.json
 }
 
 resource "aws_kms_alias" "this" {
@@ -31,7 +50,7 @@ module "reader" {
   name = "${replace(var.name, "/", "-")}-reader"
 
   attach_external_secrets_policy        = true
-  external_secrets_secrets_manager_arns = [aws_secretsmanager_secret.this.arn]
+  external_secrets_secrets_manager_arns = concat([aws_secretsmanager_secret.this.arn], var.additional_secret_arns)
   external_secrets_kms_key_arns         = [aws_kms_key.this.arn]
   external_secrets_create_permission    = false
 
