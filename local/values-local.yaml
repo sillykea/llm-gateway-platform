@@ -12,3 +12,8 @@ monitoring:
 ollama:
   enabled: false        # heavy on a laptop; set true to try PII routing
 redisAddress: redis:6379
+# The local Redis has no TLS or password.
+config:
+  cache:
+    redis_tls: false
+    redis_password_env: ""
