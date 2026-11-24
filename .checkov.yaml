@@ -3,11 +3,6 @@
 compact: true
 quiet: true
 skip-check:
-  # ElastiCache in-transit encryption: the gateway's Redis client is plain
-  # RESP. Mitigated by isolated subnets + SG to nodes only. docs/adr/0004.
-  - CKV_AWS_191
-  # ElastiCache auth token requires in-transit encryption (same reason).
-  - CKV_AWS_31
   # S3 access logging for the state and audit buckets would need a third
   # bucket; CloudTrail data events cover access to them.
   - CKV_AWS_18
@@ -23,8 +18,26 @@ skip-check:
   # Secrets Manager automatic rotation: third-party API keys can't be
   # rotated by a Lambda; rotation is a documented manual step (runbook).
   - CKV2_AWS_57
+  # Registry modules are pinned to version ranges and updated by Renovate;
+  # commit-hash pinning would defeat that workflow.
+  - CKV_TF_1
+  # AZ names map consistently within one account; this platform never
+  # shares subnets across accounts, which is what zone-ID pinning protects.
+  - CKV_AWS_394
+  # GuardDuty organisation-wide enablement: single account, no AWS Organization.
+  - CKV2_AWS_3
   # Kubernetes: image digests instead of tags. Tags are immutable commit
   # SHAs, enforced by the chart.
   - CKV_K8S_43
   # Kubernetes: Ollama needs a writable root filesystem for its runtime.
   - CKV_K8S_22
+  # Kubernetes: no CPU limits, deliberately. CFS throttling adds latency
+  # even when the node has idle CPU; requests drive scheduling and the HPA.
+  # Memory limits are set.
+  - CKV_K8S_11
+  # Kubernetes: the gateway reads API keys from environment variables by
+  # design (twelve-factor); they come from a Secret, never the image or logs.
+  - CKV_K8S_35
+  # Kubernetes: pull policy Always. Tags are immutable commit SHAs, so
+  # IfNotPresent is equivalent and avoids a registry round trip per start.
+  - CKV_K8S_15
