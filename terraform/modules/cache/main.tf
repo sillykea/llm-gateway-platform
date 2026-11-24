@@ -77,8 +77,10 @@ resource "aws_elasticache_replication_group" "this" {
   subnet_group_name  = aws_elasticache_subnet_group.this.name
   security_group_ids = [aws_security_group.this.id]
 
-  # Encrypted at rest and in transit, and every connection must AUTH.
+  # Encrypted at rest (with our own KMS key) and in transit, and every
+  # connection must AUTH.
   at_rest_encryption_enabled = true
+  kms_key_id                 = var.kms_key_arn
   transit_encryption_enabled = true
   auth_token                 = random_password.auth.result
 

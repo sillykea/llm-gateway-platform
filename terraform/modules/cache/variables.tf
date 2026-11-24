@@ -34,6 +34,6 @@ variable "snapshot_retention_days" {
 }
 
 variable "kms_key_arn" {
-  description = "KMS key that encrypts the Secrets Manager secret holding the auth token."
+  description = "Customer-managed KMS key for the cache data at rest and the auth token secret."
   type        = string
 }
