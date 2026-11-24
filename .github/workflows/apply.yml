@@ -1,0 +1,35 @@
+name: apply
+# Applies merged changes: dev first, then prod. Each job runs in a GitHub
+# environment; the AWS apply role for that environment trusts only jobs in
+# it, and the prod environment requires a reviewer's approval.
+on:
+  push:
+    branches: [main]
+    paths: ["terraform/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: apply
+  cancel-in-progress: false   # never interrupt a running apply
+
+env:
+  TF_VERSION: 1.10.5
+
+jobs:
+  dev:
+    if: vars.AWS_PLAN_ROLE_ARN != ''
+    uses: ./.github/workflows/apply-env.yml
+    with:
+      environment: dev
+    secrets: inherit
+
+  prod:
+    needs: dev
+    uses: ./.github/workflows/apply-env.yml
+    with:
+      environment: prod
+    secrets: inherit

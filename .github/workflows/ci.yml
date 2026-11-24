@@ -1,0 +1,119 @@
+name: ci
+# Static checks that need no cloud account. Runs on every push and PR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: 1.10.5
+  HELM_VERSION: v3.16.3
+  KUBECONFORM_VERSION: v0.6.7
+  CONFTEST_VERSION: 0.56.0
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        root: [bootstrap, stacks/account, stacks/infra, stacks/platform]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+      - name: Format
+        if: matrix.root == 'bootstrap'
+        run: terraform fmt -check -recursive -diff terraform
+      - name: Validate
+        working-directory: terraform/${{ matrix.root }}
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+      - name: Lint
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config "$GITHUB_WORKSPACE/.tflint.hcl"
+          tflint --recursive --config "$GITHUB_WORKSPACE/.tflint.hcl" --chdir terraform
+
+  checkov-terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet checkov
+      - name: Scan Terraform
+        run: checkov --config-file .checkov.yaml -d terraform --framework terraform
+
+  kubernetes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+      - name: Install kubeconform
+        run: |
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" | tar xz -C /usr/local/bin kubeconform
+      - name: Lint chart
+        run: |
+          for env in dev prod; do
+            helm lint charts/llm-gateway -f charts/llm-gateway/values-$env.yaml \
+              --set image.tag=ci --set externalSecret.remoteKey=llm-gateway/$env --set redisAddress=redis:6379
+          done
+      - name: Render
+        run: |
+          mkdir -p rendered
+          for env in dev prod; do
+            helm template llm-gateway charts/llm-gateway -n llm-gateway -f charts/llm-gateway/values-$env.yaml \
+              --set image.tag=ci --set externalSecret.remoteKey=llm-gateway/$env --set redisAddress=redis:6379 \
+              > rendered/gateway-$env.yaml
+            helm template root gitops/apps -n argocd --set environment=$env \
+              --set aws.clusterName=llm-gateway-$env --set aws.vpcId=vpc-ci \
+              --set gateway.redisAddress=redis:6379 --set gateway.secretName=llm-gateway/$env \
+              > rendered/apps-$env.yaml
+          done
+      - name: Validate against Kubernetes and CRD schemas
+        run: |
+          kubeconform -strict -summary -kubernetes-version 1.31.0 \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            rendered/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Scan manifests
+        run: |
+          pip install --quiet checkov
+          checkov --config-file .checkov.yaml -d rendered --framework kubernetes
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-manifests
+          path: rendered/
+
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install conftest
+        run: |
+          curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin conftest
+      - name: Unit-test the guardrail policies
+        run: conftest verify --policy policy/terraform --show-builtin-errors

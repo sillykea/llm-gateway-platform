@@ -1,0 +1,81 @@
+name: plan
+# Plans every environment on pull requests that touch Terraform, checks the
+# plan against the OPA guardrails, prices it with Infracost and posts both on
+# the PR. Skipped until the repository is connected to an AWS account
+# (set the AWS_PLAN_ROLE_ARN variable; see docs/runbook.md).
+on:
+  pull_request:
+    paths: ["terraform/**", "policy/**"]
+
+permissions:
+  contents: read
+  id-token: write        # OIDC token for AWS
+  pull-requests: write   # plan and cost comments
+
+env:
+  TF_VERSION: 1.10.5
+  CONFTEST_VERSION: 0.56.0
+
+jobs:
+  plan:
+    if: vars.AWS_PLAN_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [dev, prod]
+    env:
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+    defaults:
+      run:
+        working-directory: terraform/stacks/infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ap-southeast-2
+      - name: Plan
+        run: |
+          terraform init -input=false -backend-config=../../envs/${{ matrix.env }}/infra.backend.hcl
+          # No lock: plans are read-only and must never block an apply.
+          terraform plan -input=false -lock=false -var-file=../../envs/${{ matrix.env }}/infra.tfvars -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          terraform show -json tfplan > plan.json
+      - name: Guardrails
+        run: |
+          curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin conftest
+          conftest test plan.json --policy ../../../policy/terraform --no-color | tee policy.txt
+      - name: Cost
+        id: cost
+        if: env.INFRACOST_API_KEY != ''
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+      - name: Price the plan
+        if: steps.cost.outcome == 'success'
+        run: infracost breakdown --path plan.json --format table --out-file cost.txt
+      - name: Comment on the PR
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          ENV_NAME: ${{ matrix.env }}
+        with:
+          script: |
+            const fs = require('fs');
+            const dir = 'terraform/stacks/infra/';
+            const read = (f, max) => {
+              try { const t = fs.readFileSync(dir + f, 'utf8'); return t.length > max ? t.slice(-max) : t; }
+              catch { return '(not available)'; }
+            };
+            const body = [
+              `### Terraform plan: \`${process.env.ENV_NAME}\``,
+              '<details><summary>Plan</summary>\n\n```\n' + read('plan.txt', 60000) + '\n```\n</details>',
+              '**Guardrails**\n```\n' + read('policy.txt', 5000) + '\n```',
+              '**Monthly cost**\n```\n' + read('cost.txt', 5000) + '\n```',
+            ].join('\n\n');
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });

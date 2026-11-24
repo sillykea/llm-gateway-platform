@@ -1,0 +1,35 @@
+name: apply-env
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ap-southeast-2
+      - name: Infrastructure
+        working-directory: terraform/stacks/infra
+        run: |
+          terraform init -input=false -backend-config=../../envs/${{ inputs.environment }}/infra.backend.hcl
+          terraform apply -input=false -auto-approve -var-file=../../envs/${{ inputs.environment }}/infra.tfvars
+      - name: Platform (Argo CD bootstrap)
+        working-directory: terraform/stacks/platform
+        run: |
+          terraform init -input=false -backend-config=../../envs/${{ inputs.environment }}/platform.backend.hcl
+          terraform apply -input=false -auto-approve -var-file=../../envs/${{ inputs.environment }}/platform.tfvars
