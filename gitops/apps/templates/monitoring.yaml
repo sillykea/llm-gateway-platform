@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: {{ .Values.charts.kubePrometheusStack }}
+    helm:
+      valuesObject:
+        prometheus:
+          prometheusSpec:
+            # Pick up ServiceMonitors and rules from every namespace, not
+            # only ones labelled for this Helm release.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            retention: {{ if eq .Values.environment "prod" }}15d{{ else }}3d{{ end }}
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3
+                  accessModes: [ReadWriteOnce]
+                  resources:
+                    requests:
+                      storage: {{ if eq .Values.environment "prod" }}50Gi{{ else }}10Gi{{ end }}
+        grafana:
+          # Imports the dashboard from the llm-gateway repo by URL.
+          dashboardProviders:
+            dashboardproviders.yaml:
+              apiVersion: 1
+              providers:
+                - name: llm-gateway
+                  folder: LLM Gateway
+                  type: file
+                  options:
+                    path: /var/lib/grafana/dashboards/llm-gateway
+          dashboards:
+            llm-gateway:
+              gateway:
+                url: https://raw.githubusercontent.com/sillykea/llm-gateway/main/deploy/grafana/dashboards/llm-gateway.json
+                datasource: Prometheus
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: monitoring
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}

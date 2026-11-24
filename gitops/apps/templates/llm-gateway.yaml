@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-gateway
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL }}
+    targetRevision: {{ .Values.targetRevision }}
+    path: charts/llm-gateway
+    helm:
+      valueFiles:
+        - values-{{ .Values.environment }}.yaml
+      valuesObject:
+        image:
+          tag: {{ .Values.gateway.imageTag | quote }}
+        redisAddress: {{ .Values.gateway.redisAddress | quote }}
+        externalSecret:
+          remoteKey: {{ .Values.gateway.secretName | quote }}
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: {{ .Values.gateway.namespace }}
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}
