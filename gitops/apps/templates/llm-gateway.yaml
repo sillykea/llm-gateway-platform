@@ -22,6 +22,7 @@ spec:
         redisAddress: {{ .Values.gateway.redisAddress | quote }}
         externalSecret:
           remoteKey: {{ .Values.gateway.secretName | quote }}
+          redisRemoteKey: {{ .Values.gateway.redisSecretName | quote }}
   {{- include "platform-apps.destination" . | nindent 2 }}
     namespace: {{ .Values.gateway.namespace }}
   {{- include "platform-apps.syncPolicy" . | nindent 2 }}

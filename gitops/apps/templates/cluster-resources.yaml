@@ -5,7 +5,8 @@ metadata:
   name: gp3
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"
-    argocd.argoproj.io/sync-wave: "-1"
+    # Before monitoring (wave -2), whose Prometheus volume asks for gp3.
+    argocd.argoproj.io/sync-wave: "-3"
 provisioner: ebs.csi.aws.com
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true
