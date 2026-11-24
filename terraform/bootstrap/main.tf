@@ -1,8 +1,23 @@
 data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
 
 locals {
-  account_id = data.aws_caller_identity.current.account_id
-  oidc_host  = "token.actions.githubusercontent.com"
+  oidc_host = "token.actions.githubusercontent.com"
+}
+
+data "aws_iam_policy_document" "state_key" {
+  #checkov:skip=CKV_AWS_111:Standard KMS key policy root statement
+  #checkov:skip=CKV_AWS_109:Standard KMS key policy root statement
+  #checkov:skip=CKV_AWS_356:Resource "*" in a key policy refers to the key itself
+  statement {
+    sid       = "AccountAdmin"
+    actions   = ["kms:*"]
+    resources = ["*"]
+    principals {
+      type        = "AWS"
+      identifiers = ["arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"]
+    }
+  }
 }
 
 # ---------------------------------------------------------------------------
@@ -14,6 +29,7 @@ resource "aws_kms_key" "state" {
   description             = "Encrypts Terraform state"
   deletion_window_in_days = 30
   enable_key_rotation     = true
+  policy                  = data.aws_iam_policy_document.state_key.json
 }
 
 resource "aws_kms_alias" "state" {
