@@ -11,11 +11,18 @@ cp terraform/bootstrap/terraform.tfvars.example terraform/bootstrap/terraform.tf
 make bootstrap
 
 # 2. Replace <your-account-id> in terraform/envs/**/*.hcl and *.tfvars, then:
+#    (if AWS Config was ever enabled in this account, its service-linked role
+#    already exists: add  -var create_config_service_linked_role=false)
 make account
 make infra ENV=dev        # ~15 minutes
 make secrets ENV=dev      # prompts for keys, stores them in Secrets Manager
 make platform ENV=dev     # Argo CD takes over from here
 make kubeconfig ENV=dev && make argocd
+
+# Once Argo CD shows everything Synced/Healthy, call the gateway:
+kubectl -n llm-gateway port-forward svc/llm-gateway 8080:80
+curl localhost:8080/v1/chat/completions -H "Authorization: Bearer <your gateway key>" \
+  -d '{"model":"chat-default","messages":[{"role":"user","content":"hello"}]}'
 ```
 
 Connect CI. In the repository settings:
@@ -25,8 +32,9 @@ Connect CI. In the repository settings:
   `AWS_APPLY_ROLE_ARN` (from `apply_role_arns`). On `prod`, add required
   reviewers.
 - **Secrets (optional):** `INFRACOST_API_KEY` for cost comments on PRs.
-- Add each apply role to `admin_role_arns` in the env's `infra.tfvars`, so the
-  platform stack can install Argo CD.
+- The environment's apply role is made cluster-admin automatically. To use
+  `kubectl` yourself, add your own role to `admin_role_arns` in the env's
+  `infra.tfvars`.
 
 The gateway image on GHCR must be public, or the cluster needs a pull secret:
 GitHub → Packages → llm-gateway → Package settings → Change visibility.
@@ -81,7 +89,7 @@ kubectl -n llm-gateway describe pod -l app.kubernetes.io/name=llm-gateway
 |---|---|
 | `CreateContainerConfigError`, secret not found | ExternalSecret not synced: `kubectl describe externalsecret`; check the secret has a value (`make secrets`) |
 | `ImagePullBackOff` | GHCR package is private, or the tag doesn't exist |
-| Running but not ready | `/readyz` fails when Redis is unreachable: check the SG and NetworkPolicy |
+| Running but not ready | `/readyz` fails when Redis is unreachable or rejects the password: `kubectl logs` shows which. Check the SG, the NetworkPolicy, and that the Secret has `REDIS_PASSWORD` |
 | Pending | No capacity: check the node group in the console, and spot availability in dev |
 
 ## Disaster recovery

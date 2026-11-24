@@ -12,7 +12,7 @@
 | Lateral movement in the cluster | Default-deny NetworkPolicies, enforced by the VPC CNI | chart, `modules/cluster` |
 | Container breakout | Non-root, read-only root FS, all capabilities dropped, seccomp | chart |
 | Data at rest | KMS on state, secrets, logs, EBS; ElastiCache at-rest encryption | everywhere |
-| Data in transit | TLS on S3 (enforced by policy), ALB TLS 1.2+; Redis is the known gap (ADR 0004) | |
+| Data in transit | TLS on S3 (enforced by policy), ALB TLS 1.2+, Redis TLS with an auth token (ADR 0004) | Pod-to-pod traffic inside the cluster is unencrypted (no service mesh) |
 | Undetected compromise | CloudTrail (validated), Config, GuardDuty incl. EKS runtime, Security Hub CIS | `modules/security-baseline` |
 | Tampered audit logs | Log file validation, versioned KMS-encrypted bucket | `modules/security-baseline` |
 | Stale dependencies | Renovate on providers, modules and charts | `renovate.json` |

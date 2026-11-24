@@ -92,8 +92,9 @@ exists (see ADR 0002).
 4. Store the API keys in Secrets Manager (`make secrets`).
 5. `platform`: installs Argo CD and the root Application. Argo CD then installs,
    in sync-wave order:
+   - wave −3: gp3 StorageClass (monitoring's volume needs it)
    - wave −2: External Secrets Operator, AWS Load Balancer Controller, monitoring
-   - wave −1: gp3 StorageClass, ClusterSecretStore
+   - wave −1: ClusterSecretStore (needs the External Secrets CRDs)
    - wave 0: the gateway (ExternalSecret → Secret → Deployment)
 
 Waves only order creation. Each Application also retries with backoff and
