@@ -4,6 +4,7 @@ module "security_baseline" {
 
   name                                = "llm-gateway"
   enable_guardduty_runtime_monitoring = var.enable_guardduty_runtime_monitoring
+  create_config_service_linked_role   = var.create_config_service_linked_role
 }
 
 output "audit_bucket" {
