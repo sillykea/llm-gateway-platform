@@ -1,0 +1,14 @@
+# Runs the production chart on kind: same templates, AWS-only parts off.
+replicaCount: 2
+autoscaling:
+  enabled: false
+externalSecret:
+  enabled: false        # up.sh creates the Secret directly
+networkPolicy:
+  enabled: false
+monitoring:
+  serviceMonitor: false
+  prometheusRule: false
+ollama:
+  enabled: false        # heavy on a laptop; set true to try PII routing
+redisAddress: redis:6379
