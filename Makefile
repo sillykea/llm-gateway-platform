@@ -56,7 +56,7 @@ policy-test: ## Unit-test the OPA guardrails
 	conftest verify --policy policy/terraform
 
 local-up: ## Run the gateway chart on a local kind cluster (no AWS needed)
-	./local/up.sh
+	bash local/up.sh
 
 local-down: ## Delete the local kind cluster
 	kind delete cluster --name llm-gateway

@@ -78,7 +78,7 @@ stops the meter.
 
 1. [Community modules behind thin local wrappers](docs/adr/0001-community-terraform-modules.md)
 2. [Terraform builds the cluster; Argo CD runs what's on it](docs/adr/0002-gitops-with-argocd.md)
-3. [CI credentials: narrow trust, broad apply permissions](docs/adr/0003-ci-credentials.md)
+3. [CI access: narrow trust, broad apply permissions](docs/adr/0003-ci-access-roles.md)
 4. [Redis without TLS, and what compensates](docs/adr/0004-redis-without-tls.md)
 5. [Dev optimises for cost, prod for resilience](docs/adr/0005-environment-sizing.md)
 6. [Prevent, then detect](docs/adr/0006-layered-security.md)
