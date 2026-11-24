@@ -243,6 +243,7 @@ resource "aws_iam_role" "apply" {
 # See docs/adr/0003: broad permissions, narrow trust. The apply role can only
 # be assumed from a protected GitHub environment with required reviewers.
 resource "aws_iam_role_policy_attachment" "apply_admin" {
+  #checkov:skip=CKV_AWS_274:Deliberate, see docs/adr/0003. Trust is limited to a protected GitHub environment with required reviewers.
   for_each = var.environments
 
   role       = aws_iam_role.apply[each.key].name
