@@ -3,6 +3,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "llm-gateway.ollamaName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "llm-gateway.labels" . | nindent 4 }}
 spec:
@@ -16,6 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "llm-gateway.ollamaName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "llm-gateway.labels" . | nindent 4 }}
 spec:
@@ -33,6 +35,10 @@ spec:
     spec:
       automountServiceAccountToken: false
       securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -50,17 +56,34 @@ spec:
               ollama pull {{ . }}
               {{- end }}
               wait $pid
+          env:
+            # Run as an unprivileged user: models live on the volume, and
+            # Ollama's own key files go to a writable scratch home.
+            - name: OLLAMA_MODELS
+              value: /models
+            - name: HOME
+              value: /tmp
           ports:
             - name: http
               containerPort: 11434
           volumeMounts:
             - name: models
-              mountPath: /root/.ollama
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
           readinessProbe:
             httpGet:
               path: /api/tags
               port: http
             periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/version
+              port: http
+            # The first model download can take minutes; don't restart mid-pull.
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 6
           resources:
             {{- toYaml .Values.ollama.resources | nindent 12 }}
           securityContext:
@@ -68,6 +91,8 @@ spec:
             capabilities:
               drop: ["ALL"]
       volumes:
+        - name: tmp
+          emptyDir: {}
         - name: models
           persistentVolumeClaim:
             claimName: {{ include "llm-gateway.ollamaName" . }}
@@ -76,6 +101,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "llm-gateway.ollamaName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "llm-gateway.labels" . | nindent 4 }}
 spec:

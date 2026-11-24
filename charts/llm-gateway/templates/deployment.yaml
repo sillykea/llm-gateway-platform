@@ -5,6 +5,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "llm-gateway.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "llm-gateway.labels" . | nindent 4 }}
 spec:
@@ -71,6 +72,12 @@ spec:
                 secretKeyRef:
                   name: {{ include "llm-gateway.secretName" . }}
                   key: OPENAI_API_KEY
+                  optional: true
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "llm-gateway.secretName" . }}
+                  key: REDIS_PASSWORD
                   optional: true
           volumeMounts:
             - name: config
