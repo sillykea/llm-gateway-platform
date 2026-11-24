@@ -1,0 +1,50 @@
+{{- if .Values.monitoring.prometheusRule }}
+# The same alerts as the gateway repo's deploy/prometheus/alerts.yml, scoped
+# to this release. Each links to the gateway runbook.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "llm-gateway.fullname" . }}
+  labels:
+    {{- include "llm-gateway.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: llm-gateway
+      rules:
+        - alert: GatewayHighErrorRate
+          expr: |
+            sum(rate(llm_gateway_requests_total{namespace="{{ .Release.Namespace }}",status="error"}[5m]))
+              / sum(rate(llm_gateway_requests_total{namespace="{{ .Release.Namespace }}"}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: page
+          annotations:
+            summary: More than 5% of upstream calls are failing
+            runbook_url: https://github.com/sillykea/llm-gateway/blob/main/docs/runbook.md#high-error-rate
+        - alert: GatewayProviderCircuitOpen
+          expr: max by (provider) (llm_gateway_breaker_open{namespace="{{ .Release.Namespace }}"}) == 1
+          for: 5m
+          labels:
+            severity: ticket
+          annotations:
+            summary: "Circuit breaker for {{`{{ $labels.provider }}`}} open for 5 minutes"
+            runbook_url: https://github.com/sillykea/llm-gateway/blob/main/docs/runbook.md#circuit-breaker-open
+        - alert: GatewayLoadShedding
+          expr: sum(rate(llm_gateway_load_shed_total{namespace="{{ .Release.Namespace }}"}[5m])) > 0
+          for: 5m
+          labels:
+            severity: page
+          annotations:
+            summary: The gateway is turning requests away at capacity
+            runbook_url: https://github.com/sillykea/llm-gateway/blob/main/docs/runbook.md#load-shedding
+        - alert: GatewayPodsNotReady
+          expr: |
+            kube_deployment_status_replicas_available{namespace="{{ .Release.Namespace }}",deployment="{{ include "llm-gateway.fullname" . }}"}
+              < kube_deployment_spec_replicas{namespace="{{ .Release.Namespace }}",deployment="{{ include "llm-gateway.fullname" . }}"}
+          for: 10m
+          labels:
+            severity: ticket
+          annotations:
+            summary: Some gateway pods have not been ready for 10 minutes
+            runbook_url: https://github.com/sillykea/llm-gateway-platform/blob/main/docs/runbook.md#pods-not-ready
+{{- end }}

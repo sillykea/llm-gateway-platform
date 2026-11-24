@@ -1,0 +1,92 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default deny, then allow only what the gateway needs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "llm-gateway.fullname" . }}
+  labels:
+    {{- include "llm-gateway.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "llm-gateway.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # The ALB (pod-IP targets) and anything else inside the VPC.
+    - from:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.vpcCidr }}
+      ports:
+        - port: 8080
+    # Prometheus scrapes.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    # Redis in the isolated subnets.
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.vpcCidr }}
+      ports:
+        - port: 6379
+    {{- if .Values.ollama.enabled }}
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "llm-gateway.ollamaSelectorLabels" . | nindent 14 }}
+      ports:
+        - port: 11434
+    {{- end }}
+    # Hosted model APIs over HTTPS.
+    - ports:
+        - port: 443
+---
+{{- if .Values.ollama.enabled }}
+# Ollama only takes traffic from the gateway, and only needs HTTPS out to
+# download models.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "llm-gateway.ollamaName" . }}
+  labels:
+    {{- include "llm-gateway.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "llm-gateway.ollamaSelectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "llm-gateway.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: 11434
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - { port: 53, protocol: UDP }
+        - { port: 53, protocol: TCP }
+    - ports:
+        - port: 443
+{{- end }}
+{{- end }}

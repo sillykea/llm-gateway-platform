@@ -1,0 +1,88 @@
+{{- if .Values.ollama.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "llm-gateway.ollamaName" . }}
+  labels:
+    {{- include "llm-gateway.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.ollama.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.ollama.storage }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "llm-gateway.ollamaName" . }}
+  labels:
+    {{- include "llm-gateway.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  # The model volume is ReadWriteOnce, so the old pod must stop first.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "llm-gateway.ollamaSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "llm-gateway.ollamaSelectorLabels" . | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ollama
+          image: {{ .Values.ollama.image }}
+          # Start the server, pull the configured models into the volume
+          # (a no-op after the first start), then keep serving.
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              ollama serve &
+              pid=$!
+              until ollama list >/dev/null 2>&1; do sleep 1; done
+              {{- range .Values.ollama.models }}
+              ollama pull {{ . }}
+              {{- end }}
+              wait $pid
+          ports:
+            - name: http
+              containerPort: 11434
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: http
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.ollama.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ include "llm-gateway.ollamaName" . }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "llm-gateway.ollamaName" . }}
+  labels:
+    {{- include "llm-gateway.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "llm-gateway.ollamaSelectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http
+{{- end }}
