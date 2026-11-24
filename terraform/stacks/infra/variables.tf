@@ -31,7 +31,7 @@ variable "public_endpoint_cidrs" {
 }
 
 variable "admin_role_arns" {
-  description = "IAM roles that get cluster-admin (e.g. your SSO role and the CI apply role)."
+  description = "Extra IAM roles that get cluster-admin, e.g. your own admin role. The CI apply role is always included."
   type        = list(string)
   default     = []
 }

@@ -32,6 +32,10 @@ output "secret_name" {
   value = module.secrets.secret_name
 }
 
+output "redis_secret_name" {
+  value = module.cache.auth_secret_name
+}
+
 output "kubeconfig_command" {
   description = "Run this to point kubectl at the cluster."
   value       = "aws eks update-kubeconfig --region ${var.region} --name ${module.cluster.cluster_name}"
