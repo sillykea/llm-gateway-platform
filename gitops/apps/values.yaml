@@ -1,0 +1,25 @@
+# Filled in by the Terraform platform stack (root Application valuesObject).
+environment: dev
+repoURL: https://github.com/sillykea/llm-gateway-platform.git
+targetRevision: main
+
+aws:
+  region: ap-southeast-2
+  clusterName: ""
+  vpcId: ""
+
+gateway:
+  # Immutable image tag (commit SHA) built by the llm-gateway repo's CI.
+  imageTag: "c98ff3ebbda5887c98076f7f577b2883ca961068"
+  redisAddress: ""
+  secretName: ""
+  namespace: llm-gateway
+
+# Pinned chart versions, kept current by Renovate (renovate.json).
+charts:
+  # renovate: datasource=helm depName=external-secrets registryUrl=https://charts.external-secrets.io
+  externalSecrets: 0.10.5
+  # renovate: datasource=helm depName=aws-load-balancer-controller registryUrl=https://aws.github.io/eks-charts
+  awsLoadBalancerController: 1.10.0
+  # renovate: datasource=helm depName=kube-prometheus-stack registryUrl=https://prometheus-community.github.io/helm-charts
+  kubePrometheusStack: 66.2.1
