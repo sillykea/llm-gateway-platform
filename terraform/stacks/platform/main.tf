@@ -80,8 +80,9 @@ resource "helm_release" "root_app" {
                 vpcId       = local.infra.vpc_id
               }
               gateway = {
-                redisAddress = local.infra.redis_address
-                secretName   = local.infra.secret_name
+                redisAddress    = local.infra.redis_address
+                secretName      = local.infra.secret_name
+                redisSecretName = local.infra.redis_secret_name
               }
             }
           }
