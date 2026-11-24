@@ -1,0 +1,109 @@
+# Defaults are safe and environment-neutral. values-dev.yaml and
+# values-prod.yaml override them; facts that come from Terraform (Redis
+# address, secret name) are passed in by the Argo CD Application.
+
+image:
+  repository: ghcr.io/sillykea/llm-gateway
+  # Set per environment to an immutable commit SHA tag, never "latest".
+  tag: ""
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+# Address of the Redis cache, host:port. Empty switches the cache to memory.
+redisAddress: ""
+
+# Secrets come from AWS Secrets Manager through External Secrets Operator.
+externalSecret:
+  enabled: true
+  storeName: aws-secrets-manager
+  # Secrets Manager secret name, e.g. llm-gateway/dev
+  remoteKey: ""
+  refreshInterval: 1h
+
+# Rendered into gateway.json. Strings may contain template expressions.
+config:
+  listen: ":8080"
+  api_keys:
+    - name: default
+      key_env: GATEWAY_API_KEY
+      rpm: 120
+      monthly_budget_usd: 50
+  providers:
+    - name: openai
+      type: openai
+      base_url: https://api.openai.com
+      api_key_env: OPENAI_API_KEY
+      timeout_seconds: 60
+    - name: ollama
+      type: ollama
+      base_url: http://{{ .Release.Name }}-ollama:11434
+      local: true
+      timeout_seconds: 120
+  models:
+    chat-default:
+      - { provider: openai, model: gpt-4o-mini }
+      - { provider: ollama, model: "qwen2.5:1.5b" }
+    chat-private:
+      - { provider: ollama, model: "qwen2.5:1.5b" }
+  pii:
+    mode: route_local
+  cache:
+    backend: '{{ if .Values.redisAddress }}redis{{ else }}memory{{ end }}'
+    redis_addr: "{{ .Values.redisAddress }}"
+    ttl_seconds: 3600
+  limits:
+    max_in_flight: 256
+    breaker_threshold: 5
+    breaker_cooldown_seconds: 30
+  pricing:
+    gpt-4o-mini: { input_per_1k: 0.00015, output_per_1k: 0.0006 }
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+ingress:
+  enabled: false
+  # internal or internet-facing
+  scheme: internal
+  host: ""
+  # ACM certificate ARN; when set, the ALB listens on 443 and redirects 80.
+  certificateArn: ""
+
+networkPolicy:
+  enabled: true
+  # VPC CIDR, so the ALB (which targets pod IPs) and Redis are reachable.
+  vpcCidr: 10.0.0.0/8
+
+monitoring:
+  serviceMonitor: true
+  prometheusRule: true
+
+ollama:
+  enabled: true
+  image: ollama/ollama:0.5.4
+  # Pulled on start. Small enough to run on CPU nodes.
+  models:
+    - qwen2.5:1.5b
+  storage: 20Gi
+  storageClass: gp3
+  resources:
+    requests:
+      cpu: "1"
+      memory: 3Gi
+    limits:
+      memory: 6Gi

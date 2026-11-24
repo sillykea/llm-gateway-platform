@@ -1,0 +1,19 @@
+replicaCount: 1
+
+autoscaling:
+  minReplicas: 1
+  maxReplicas: 3
+
+podDisruptionBudget:
+  enabled: false
+
+config:
+  api_keys:
+    - name: default
+      key_env: GATEWAY_API_KEY
+      rpm: 60
+      monthly_budget_usd: 10
+  limits:
+    max_in_flight: 64
+    breaker_threshold: 5
+    breaker_cooldown_seconds: 30

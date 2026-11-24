@@ -1,0 +1,13 @@
+apiVersion: v2
+name: llm-gateway
+description: Self-hosted, OpenAI-compatible LLM gateway with optional local Ollama models
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+home: https://github.com/sillykea/llm-gateway
+sources:
+  - https://github.com/sillykea/llm-gateway
+  - https://github.com/sillykea/llm-gateway-platform
+maintainers:
+  - name: Elijah Monreal
+    url: https://github.com/sillykea
