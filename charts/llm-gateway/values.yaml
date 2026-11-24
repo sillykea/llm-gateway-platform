@@ -19,6 +19,9 @@ externalSecret:
   storeName: aws-secrets-manager
   # Secrets Manager secret name, e.g. llm-gateway/dev
   remoteKey: ""
+  # Secret holding REDIS_PASSWORD (the ElastiCache auth token), e.g.
+  # llm-gateway/dev/redis. Created by Terraform.
+  redisRemoteKey: ""
   refreshInterval: 1h
 
 # Rendered into gateway.json. Strings may contain template expressions.
@@ -51,6 +54,9 @@ config:
   cache:
     backend: '{{ if .Values.redisAddress }}redis{{ else }}memory{{ end }}'
     redis_addr: "{{ .Values.redisAddress }}"
+    # ElastiCache runs with in-transit encryption and an auth token.
+    redis_tls: true
+    redis_password_env: REDIS_PASSWORD
     ttl_seconds: 3600
   limits:
     max_in_flight: 256
