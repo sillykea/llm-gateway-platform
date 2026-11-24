@@ -14,3 +14,9 @@ variable "enable_guardduty_runtime_monitoring" {
   type        = bool
   default     = true
 }
+
+variable "create_config_service_linked_role" {
+  description = "Set false if AWS Config's service-linked role already exists in the account."
+  type        = bool
+  default     = true
+}

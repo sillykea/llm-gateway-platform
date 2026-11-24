@@ -1,5 +1,5 @@
 # Account-level detective controls. Deployed once per AWS account by the
-# terraform/account stack, not per environment.
+# terraform/stacks/account stack, not per environment.
 
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
@@ -27,6 +27,11 @@ resource "aws_kms_alias" "audit" {
 }
 
 data "aws_iam_policy_document" "audit_key" {
+  # The account-root statement is AWS's standard key policy: it delegates
+  # access control to IAM. Resource "*" in a key policy means "this key".
+  #checkov:skip=CKV_AWS_111:Standard KMS key policy root statement
+  #checkov:skip=CKV_AWS_109:Standard KMS key policy root statement
+  #checkov:skip=CKV_AWS_356:Resource "*" in a key policy refers to the key itself
   statement {
     sid       = "AccountAdmin"
     actions   = ["kms:*"]
@@ -114,6 +119,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "audit" {
     noncurrent_version_expiration {
       noncurrent_days = 30
     }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
   }
 }
 
@@ -195,17 +204,23 @@ resource "aws_cloudtrail" "this" {
 # ------------------------------------------------------------------ AWS Config
 
 resource "aws_iam_service_linked_role" "config" {
+  count            = var.create_config_service_linked_role ? 1 : 0
   aws_service_name = "config.amazonaws.com"
 }
 
 resource "aws_config_configuration_recorder" "this" {
-  name     = "default"
-  role_arn = aws_iam_service_linked_role.config.arn
+  name = "default"
+
+  # The service-linked role's ARN is fixed, so it can be built whether or not
+  # this stack created the role.
+  role_arn = "arn:${local.partition}:iam::${local.account_id}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig"
 
   recording_group {
     all_supported                 = true
     include_global_resource_types = true
   }
+
+  depends_on = [aws_iam_service_linked_role.config]
 }
 
 resource "aws_config_delivery_channel" "this" {
