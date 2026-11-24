@@ -1,0 +1,30 @@
+# Checkov runs on the Terraform code and on the rendered Kubernetes manifests.
+# Every skip has a reason. Anything not listed here must pass.
+compact: true
+quiet: true
+skip-check:
+  # ElastiCache in-transit encryption: the gateway's Redis client is plain
+  # RESP. Mitigated by isolated subnets + SG to nodes only. docs/adr/0004.
+  - CKV_AWS_191
+  # ElastiCache auth token requires in-transit encryption (same reason).
+  - CKV_AWS_31
+  # S3 access logging for the state and audit buckets would need a third
+  # bucket; CloudTrail data events cover access to them.
+  - CKV_AWS_18
+  # Cross-region replication for state/audit buckets: single-region project.
+  - CKV_AWS_144
+  # S3 event notifications: nothing consumes them.
+  - CKV2_AWS_62
+  # CloudTrail -> CloudWatch Logs integration: GuardDuty and Security Hub
+  # already alert on the same events; logs are kept in S3.
+  - CKV2_AWS_10
+  # CloudTrail SNS topic: same reason as above.
+  - CKV_AWS_252
+  # Secrets Manager automatic rotation: third-party API keys can't be
+  # rotated by a Lambda; rotation is a documented manual step (runbook).
+  - CKV2_AWS_57
+  # Kubernetes: image digests instead of tags. Tags are immutable commit
+  # SHAs, enforced by the chart.
+  - CKV_K8S_43
+  # Kubernetes: Ollama needs a writable root filesystem for its runtime.
+  - CKV_K8S_22
