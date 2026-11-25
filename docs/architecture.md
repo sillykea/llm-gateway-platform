@@ -89,13 +89,17 @@ exists (see ADR 0002).
 1. `bootstrap`: state bucket and CI roles. Run once, locally, with admin credentials.
 2. `account`: security baseline.
 3. `infra` for an environment: about 15 minutes, mostly EKS.
-4. Store the API keys in Secrets Manager (`make secrets`).
+4. Store the API keys and console sign-ins in Secrets Manager (`make secrets`,
+   `make console-users`).
 5. `platform`: installs Argo CD and the root Application. Argo CD then installs,
    in sync-wave order:
    - wave −3: gp3 StorageClass (monitoring's volume needs it)
    - wave −2: External Secrets Operator, AWS Load Balancer Controller, monitoring
    - wave −1: ClusterSecretStore (needs the External Secrets CRDs)
-   - wave 0: the gateway (ExternalSecret → Secret → Deployment)
+   - wave 0: the console (ExternalSecret → Secret → StatefulSet), so keys exist
+     before any gateway asks for them
+   - wave 1: the gateway (ExternalSecret → Secret → Deployment), which pulls
+     its keys from the console
 
 Waves only order creation. Each Application also retries with backoff and
 skips dry-run for CRDs that don't exist yet, so a component that starts

@@ -16,6 +16,9 @@ make bootstrap
 make account
 make infra ENV=dev        # ~15 minutes
 make secrets ENV=dev      # prompts for keys, stores them in Secrets Manager
+# Console sign-ins: copy users.example.json from llm-gateway-console, fill in
+# hashes from `console hash-password`, then store it (never commit it):
+make console-users ENV=dev USERS=./users.json
 make platform ENV=dev     # Argo CD takes over from here
 make kubeconfig ENV=dev && make argocd
 
@@ -23,7 +26,13 @@ make kubeconfig ENV=dev && make argocd
 kubectl -n llm-gateway port-forward svc/llm-gateway 8080:80
 curl localhost:8080/v1/chat/completions -H "Authorization: Bearer <your gateway key>" \
   -d '{"model":"chat-default","messages":[{"role":"user","content":"hello"}]}'
+
+# Manage keys and budgets in the console (sign in with your users.json):
+make console              # http://localhost:8090
 ```
+
+Keys created in the console reach every gateway within 30 seconds, and
+revoked keys stop working just as fast (docs/adr/0007).
 
 Connect CI. In the repository settings:
 
@@ -36,8 +45,9 @@ Connect CI. In the repository settings:
   `kubectl` yourself, add your own role to `admin_role_arns` in the env's
   `infra.tfvars`.
 
-The gateway image on GHCR must be public, or the cluster needs a pull secret:
-GitHub → Packages → llm-gateway → Package settings → Change visibility.
+The gateway and console images on GHCR must be public, or the cluster needs a pull secret:
+GitHub → Packages → llm-gateway (and llm-gateway-console) → Package settings →
+Change visibility.
 
 ## Deploy a new gateway version
 
