@@ -32,6 +32,14 @@ secrets: ## Store API keys in Secrets Manager (prompts; never written to disk)
 	aws secretsmanager put-secret-value --region $(REGION) --secret-id llm-gateway/$(ENV) \
 	  --secret-string "$$(printf '{"GATEWAY_API_KEY":"%s","OPENAI_API_KEY":"%s"}' "$$gw" "$$oa")" >/dev/null && echo stored
 
+console-users: ## Store console sign-ins (users.json) in Secrets Manager
+	@test -f "$(USERS)" || { echo "usage: make console-users ENV=dev USERS=path/to/users.json"; exit 1; }
+	aws secretsmanager put-secret-value --region $(REGION) --secret-id llm-gateway/$(ENV)/console-users \
+	  --secret-string "$$(python3 -c 'import json,sys; print(json.dumps({"users.json": open(sys.argv[1]).read()}))' "$(USERS)")" >/dev/null && echo stored
+
+console: ## Open the console on http://localhost:8090
+	kubectl -n llm-gateway-console port-forward svc/llm-gateway-console 8090:80
+
 argocd: ## Open the Argo CD UI on http://localhost:8080
 	@echo "password: $$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d)"
 	kubectl -n argocd port-forward svc/argocd-server 8080:80

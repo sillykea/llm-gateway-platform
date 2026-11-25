@@ -77,6 +77,9 @@ jobs:
           for env in dev prod; do
             helm lint charts/llm-gateway -f charts/llm-gateway/values-$env.yaml \
               --set image.tag=ci --set externalSecret.remoteKey=llm-gateway/$env --set redisAddress=redis:6379
+            helm lint charts/llm-gateway-console -f charts/llm-gateway-console/values-$env.yaml \
+              --set image.tag=ci --set externalSecret.sessionRemoteKey=s \
+              --set externalSecret.syncRemoteKey=s --set externalSecret.usersRemoteKey=s
           done
       - name: Render
         run: |
@@ -85,6 +88,18 @@ jobs:
             helm template llm-gateway charts/llm-gateway -n llm-gateway -f charts/llm-gateway/values-$env.yaml \
               --set image.tag=ci --set externalSecret.remoteKey=llm-gateway/$env --set redisAddress=redis:6379 \
               > rendered/gateway-$env.yaml
+            # The gateway as Argo CD deploys it: key sync from the console on.
+            helm template llm-gateway charts/llm-gateway -n llm-gateway -f charts/llm-gateway/values-$env.yaml \
+              --set image.tag=ci --set externalSecret.remoteKey=llm-gateway/$env --set redisAddress=redis:6379 \
+              --set keySource.url=http://llm-gateway-console.llm-gateway-console.svc:8091/internal/keys \
+              --set externalSecret.syncRemoteKey=llm-gateway/$env/console-sync \
+              > rendered/gateway-keysync-$env.yaml
+            helm template llm-gateway-console charts/llm-gateway-console -n llm-gateway-console \
+              -f charts/llm-gateway-console/values-$env.yaml --set image.tag=ci \
+              --set externalSecret.sessionRemoteKey=llm-gateway/$env/console-session \
+              --set externalSecret.syncRemoteKey=llm-gateway/$env/console-sync \
+              --set externalSecret.usersRemoteKey=llm-gateway/$env/console-users \
+              > rendered/console-$env.yaml
             helm template root gitops/apps -n argocd --set environment=$env \
               --set aws.clusterName=llm-gateway-$env --set aws.vpcId=vpc-ci \
               --set gateway.redisAddress=redis:6379 --set gateway.secretName=llm-gateway/$env \
