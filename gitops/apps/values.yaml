@@ -10,11 +10,20 @@ aws:
 
 gateway:
   # Immutable image tag (commit SHA) built by the llm-gateway repo's CI.
-  imageTag: "b477f3e0534211c352ff988cadd8990b8e04f289"
+  imageTag: "b58c5112c5dfc946741c97dcdddf818f724b9936"
   redisAddress: ""
   secretName: ""
   redisSecretName: ""
   namespace: llm-gateway
+
+console:
+  # Immutable image tag (commit SHA) built by the llm-gateway-console repo's CI.
+  imageTag: "bfb5dd6179e1859b548bd1a4ef150a685a046bee"
+  namespace: llm-gateway-console
+  # Secrets Manager names, filled in by Terraform.
+  sessionSecretName: ""
+  syncSecretName: ""
+  usersSecretName: ""
 
 # Pinned chart versions, kept current by Renovate (renovate.json).
 charts:

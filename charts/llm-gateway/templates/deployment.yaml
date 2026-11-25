@@ -79,6 +79,13 @@ spec:
                   name: {{ include "llm-gateway.secretName" . }}
                   key: REDIS_PASSWORD
                   optional: true
+            {{- if .Values.keySource.url }}
+            - name: CONSOLE_SYNC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "llm-gateway.secretName" . }}
+                  key: CONSOLE_SYNC_TOKEN
+            {{- end }}
           volumeMounts:
             - name: config
               mountPath: /etc/gateway

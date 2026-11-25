@@ -21,3 +21,9 @@ syncPolicy:
 destination:
   server: https://kubernetes.default.svc
 {{- end -}}
+
+
+{{/* The console's internal key endpoint, which gateways poll. */}}
+{{- define "platform-apps.consoleKeysUrl" -}}
+http://llm-gateway-console.{{ .Values.console.namespace }}.svc:8091/internal/keys
+{{- end -}}

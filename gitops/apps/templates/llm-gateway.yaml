@@ -4,7 +4,7 @@ metadata:
   name: llm-gateway
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -23,6 +23,10 @@ spec:
         externalSecret:
           remoteKey: {{ .Values.gateway.secretName | quote }}
           redisRemoteKey: {{ .Values.gateway.redisSecretName | quote }}
+          syncRemoteKey: {{ .Values.console.syncSecretName | quote }}
+        keySource:
+          url: {{ include "platform-apps.consoleKeysUrl" . | quote }}
+          consoleNamespace: {{ .Values.console.namespace }}
   {{- include "platform-apps.destination" . | nindent 2 }}
     namespace: {{ .Values.gateway.namespace }}
   {{- include "platform-apps.syncPolicy" . | nindent 2 }}

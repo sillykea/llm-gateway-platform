@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-gateway-console
+  namespace: argocd
+  annotations:
+    # Before the gateway: a gateway that syncs keys reports not ready until
+    # it has fetched them once, so the console should already be up.
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL }}
+    targetRevision: {{ .Values.targetRevision }}
+    path: charts/llm-gateway-console
+    helm:
+      valueFiles:
+        - values-{{ .Values.environment }}.yaml
+      valuesObject:
+        image:
+          tag: {{ .Values.console.imageTag | quote }}
+        gatewayNamespace: {{ .Values.gateway.namespace }}
+        externalSecret:
+          sessionRemoteKey: {{ .Values.console.sessionSecretName | quote }}
+          syncRemoteKey: {{ .Values.console.syncSecretName | quote }}
+          usersRemoteKey: {{ .Values.console.usersSecretName | quote }}
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: {{ .Values.console.namespace }}
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}

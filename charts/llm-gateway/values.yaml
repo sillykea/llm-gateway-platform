@@ -13,6 +13,13 @@ replicaCount: 2
 # Address of the Redis cache, host:port. Empty switches the cache to memory.
 redisAddress: ""
 
+# Key sync from llm-gateway-console. url is the console's internal endpoint,
+# e.g. http://llm-gateway-console.llm-gateway-console.svc:8091/internal/keys
+keySource:
+  url: ""
+  # Console namespace, for the NetworkPolicy egress rule.
+  consoleNamespace: llm-gateway-console
+
 # Secrets come from AWS Secrets Manager through External Secrets Operator.
 externalSecret:
   enabled: true
@@ -22,6 +29,9 @@ externalSecret:
   # Secret holding REDIS_PASSWORD (the ElastiCache auth token), e.g.
   # llm-gateway/dev/redis. Created by Terraform.
   redisRemoteKey: ""
+  # Secret holding CONSOLE_SYNC_TOKEN, shared with the console. Created by
+  # Terraform. Needed only when keySource.url is set.
+  syncRemoteKey: ""
   refreshInterval: 1h
 
 # Rendered into gateway.json. Strings may contain template expressions.
@@ -64,6 +74,12 @@ config:
     breaker_cooldown_seconds: 30
   pricing:
     gpt-4o-mini: { input_per_1k: 0.00015, output_per_1k: 0.0006 }
+  # Extra API keys pulled from the console. An empty url turns this off, and
+  # the gateway uses only the keys above.
+  key_source:
+    url: "{{ .Values.keySource.url }}"
+    token_env: CONSOLE_SYNC_TOKEN
+    refresh_seconds: 30
 
 resources:
   requests:

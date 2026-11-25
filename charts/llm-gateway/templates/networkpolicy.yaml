@@ -51,6 +51,18 @@ spec:
       ports:
         - port: 11434
     {{- end }}
+    {{- if .Values.keySource.url }}
+    # Key sync from the console.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.keySource.consoleNamespace }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: llm-gateway-console
+      ports:
+        - port: 8091
+    {{- end }}
     # Hosted model APIs over HTTPS.
     - ports:
         - port: 443
