@@ -35,7 +35,7 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ap-southeast-2
@@ -53,7 +53,7 @@ jobs:
       - name: Cost
         id: cost
         if: env.INFRACOST_API_KEY != ''
-        uses: infracost/actions/setup@v3
+        uses: infracost/actions/setup@v5
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
       - name: Price the plan
@@ -61,7 +61,7 @@ jobs:
         run: infracost breakdown --path plan.json --format table --out-file cost.txt
       - name: Comment on the PR
         if: always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           ENV_NAME: ${{ matrix.env }}
         with:
