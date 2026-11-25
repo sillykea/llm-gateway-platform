@@ -10,7 +10,7 @@ aws:
 
 gateway:
   # Immutable image tag (commit SHA) built by the llm-gateway repo's CI.
-  imageTag: "b58c5112c5dfc946741c97dcdddf818f724b9936"
+  imageTag: "4a3120bdd39416cc73d39478b008c74f4b7e68af"
   redisAddress: ""
   secretName: ""
   redisSecretName: ""

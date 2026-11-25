@@ -37,7 +37,13 @@ values must not contain double quotes: toPrettyJson escapes them, and tpl
 then fails to parse the escaped string.
 */}}
 {{- define "llm-gateway.config" -}}
-{{- tpl (toPrettyJson .Values.config) . -}}
+{{- $cfg := deepCopy .Values.config -}}
+{{- /* Shared limits need Redis, so they follow redisAddress. Set here
+       rather than in values.yaml because tpl can't produce a JSON boolean. */ -}}
+{{- if and .Values.redisAddress .Values.sharedLimits -}}
+{{- $_ := set $cfg.limits "shared" true -}}
+{{- end -}}
+{{- tpl (toPrettyJson $cfg) . -}}
 {{- end -}}
 
 {{/* Kept to the release name so values.yaml can refer to it without quotes. */}}

@@ -12,6 +12,9 @@ replicaCount: 2
 
 # Address of the Redis cache, host:port. Empty switches the cache to memory.
 redisAddress: ""
+# With Redis, keep rate limits and budgets there so every replica enforces
+# one limit per key (gateway ADR 3). Ignored without redisAddress.
+sharedLimits: true
 
 # Key sync from llm-gateway-console. url is the console's internal endpoint,
 # e.g. http://llm-gateway-console.llm-gateway-console.svc:8091/internal/keys
