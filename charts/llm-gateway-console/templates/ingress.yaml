@@ -1,0 +1,36 @@
+{{- if .Values.ingress.enabled }}
+{{- if not .Values.ingress.certificateArn }}
+{{- fail "ingress.certificateArn is required: the console's session cookies only work over HTTPS" }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "console.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "console.labels" . | nindent 4 }}
+  annotations:
+    alb.ingress.kubernetes.io/scheme: {{ .Values.ingress.scheme }}
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.ingress.certificateArn }}
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+spec:
+  ingressClassName: alb
+  rules:
+    - {{- with .Values.ingress.host }}
+      host: {{ . }}
+      {{- end }}
+      http:
+        paths:
+          # Only the UI and API. The internal key endpoint is never exposed.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "console.fullname" . }}
+                port:
+                  name: http
+{{- end }}

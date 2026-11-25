@@ -1,0 +1,102 @@
+{{- if not .Values.image.tag }}
+{{- fail "image.tag is required: use an immutable commit SHA, not latest" }}
+{{- end }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "console.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "console.labels" . | nindent 4 }}
+spec:
+  # One writer for the key store and audit log (docs/adr/0007).
+  replicas: 1
+  serviceName: {{ include "console.fullname" . }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      {{- include "console.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "console.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "console.fullname" . }}
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: console
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+            - name: internal
+              containerPort: 8091
+              protocol: TCP
+          env:
+            - name: CONSOLE_DATA_DIR
+              value: /data
+            - name: CONSOLE_USERS_FILE
+              value: /etc/console/users.json
+            - name: PROMETHEUS_URL
+              value: {{ .Values.prometheusUrl | quote }}
+            - name: CONSOLE_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "console.secretName" . }}
+                  key: CONSOLE_SESSION_SECRET
+            - name: CONSOLE_SYNC_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "console.secretName" . }}
+                  key: CONSOLE_SYNC_TOKEN
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: users
+              mountPath: /etc/console
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: users
+          secret:
+            secretName: {{ include "console.secretName" . }}
+            items:
+              - key: users.json
+                path: users.json
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: {{ .Values.storage.storageClass }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

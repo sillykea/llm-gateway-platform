@@ -84,6 +84,11 @@ resource "helm_release" "root_app" {
                 secretName      = local.infra.secret_name
                 redisSecretName = local.infra.redis_secret_name
               }
+              console = {
+                sessionSecretName = local.infra.console_session_secret_name
+                syncSecretName    = local.infra.console_sync_secret_name
+                usersSecretName   = local.infra.console_users_secret_name
+              }
             }
           }
         }

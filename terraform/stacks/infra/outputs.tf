@@ -36,6 +36,19 @@ output "redis_secret_name" {
   value = module.cache.auth_secret_name
 }
 
+output "console_session_secret_name" {
+  value = aws_secretsmanager_secret.console_session.name
+}
+
+output "console_sync_secret_name" {
+  value = aws_secretsmanager_secret.console_sync.name
+}
+
+output "console_users_secret_name" {
+  description = "Write users.json into this secret once (docs/runbook.md)."
+  value       = aws_secretsmanager_secret.console_users.name
+}
+
 output "kubeconfig_command" {
   description = "Run this to point kubectl at the cluster."
   value       = "aws eks update-kubeconfig --region ${var.region} --name ${module.cluster.cluster_name}"
