@@ -51,8 +51,8 @@ module "cache" {
 module "secrets" {
   source = "../../modules/secrets"
 
-  name                   = "llm-gateway/${var.environment}"
-  cluster_name           = module.cluster.cluster_name
+  name         = "llm-gateway/${var.environment}"
+  cluster_name = module.cluster.cluster_name
   additional_secret_arns = [
     module.cache.auth_secret_arn,
     aws_secretsmanager_secret.console_sync.arn,
