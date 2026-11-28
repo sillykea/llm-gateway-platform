@@ -27,6 +27,11 @@ spec:
         keySource:
           url: {{ include "platform-apps.consoleKeysUrl" . | quote }}
           consoleNamespace: {{ .Values.console.namespace }}
+        # With GPU inference on, llm-operator adds a route per model and the
+        # gateway reads the merged config it writes.
+        operatorConfig:
+          enabled: {{ .Values.inference.enabled }}
+          inferenceNamespace: {{ .Values.inference.namespace }}
   {{- include "platform-apps.destination" . | nindent 2 }}
     namespace: {{ .Values.gateway.namespace }}
   {{- include "platform-apps.syncPolicy" . | nindent 2 }}

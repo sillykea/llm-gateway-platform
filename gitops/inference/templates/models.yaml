@@ -1,0 +1,11 @@
+{{- range .Values.models }}
+---
+apiVersion: llm.sillykea.dev/v1alpha1
+kind: LLMDeployment
+metadata:
+  name: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  {{- toYaml .spec | nindent 2 }}
+{{- end }}

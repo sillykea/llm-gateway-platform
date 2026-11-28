@@ -63,6 +63,15 @@ spec:
       ports:
         - port: 8091
     {{- end }}
+    {{- if .Values.operatorConfig.enabled }}
+    # Self-hosted models served by vLLM.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.operatorConfig.inferenceNamespace }}
+      ports:
+        - port: 8000
+    {{- end }}
     # Hosted model APIs over HTTPS.
     - ports:
         - port: 443

@@ -1,0 +1,38 @@
+{{- if .Values.inference.enabled }}
+# Advertises each node's GPUs as the nvidia.com/gpu resource vLLM pods
+# request. The AL2023 NVIDIA AMI ships the driver but not this plugin.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nvidia-device-plugin
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://nvidia.github.io/k8s-device-plugin
+    chart: nvidia-device-plugin
+    targetRevision: {{ .Values.charts.nvidiaDevicePlugin }}
+    helm:
+      valuesObject:
+        # Only on the GPU nodes Karpenter launches. This replaces the chart's
+        # default affinity, which expects labels from Node Feature Discovery.
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: workload
+                      operator: In
+                      values: [gpu-inference]
+        tolerations:
+          - key: nvidia.com/gpu
+            operator: Exists
+            effect: NoSchedule
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: kube-system
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}
+{{- end }}

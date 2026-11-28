@@ -70,3 +70,9 @@ variable "log_retention_days" {
   type    = number
   default = 30
 }
+
+variable "enable_karpenter" {
+  description = "Create the IAM roles, interruption queue and access entry Karpenter needs to launch GPU nodes for inference (docs/adr/0008)."
+  type        = bool
+  default     = false
+}

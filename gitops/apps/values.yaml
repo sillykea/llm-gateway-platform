@@ -7,6 +7,9 @@ aws:
   region: ap-southeast-2
   clusterName: ""
   vpcId: ""
+  # For Karpenter's EC2NodeClass (GPU inference only).
+  privateSubnetIds: []
+  nodeSecurityGroupId: ""
 
 gateway:
   # Immutable image tag (commit SHA) built by the llm-gateway repo's CI.
@@ -25,6 +28,22 @@ console:
   syncSecretName: ""
   usersSecretName: ""
 
+# Self-hosted models on GPU nodes that scale to zero (docs/adr/0008).
+# Set by Terraform from enable_gpu_inference; everything below is ignored
+# while it is false.
+inference:
+  enabled: false
+  namespace: inference
+
+karpenter:
+  nodeRoleName: ""
+  queueName: ""
+
+operator:
+  # Commit of sillykea/llm-operator to deploy config/ from; its CI builds an
+  # image with the same tag.
+  revision: "04c392466ed49c27a359dad77b23e2ec2ea795a2"
+
 # Pinned chart versions, kept current by Renovate (renovate.json).
 charts:
   # renovate: datasource=helm depName=external-secrets registryUrl=https://charts.external-secrets.io
@@ -33,3 +52,9 @@ charts:
   awsLoadBalancerController: 1.10.0
   # renovate: datasource=helm depName=kube-prometheus-stack registryUrl=https://prometheus-community.github.io/helm-charts
   kubePrometheusStack: 66.2.1
+  # renovate: datasource=helm depName=keda registryUrl=https://kedacore.github.io/charts
+  keda: 2.16.1
+  # renovate: datasource=docker depName=public.ecr.aws/karpenter/karpenter
+  karpenter: 1.1.1
+  # renovate: datasource=helm depName=nvidia-device-plugin registryUrl=https://nvidia.github.io/k8s-device-plugin
+  nvidiaDevicePlugin: 0.17.0

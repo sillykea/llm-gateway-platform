@@ -1,0 +1,26 @@
+{{- if .Values.inference.enabled }}
+# Turns each LLMDeployment into vLLM, its ScaledObject, alerts and a gateway
+# route, and writes the gateway's merged config (docs/adr/0008).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-operator
+  namespace: argocd
+  annotations:
+    # Before the gateway (1), which mounts the config the operator writes.
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/sillykea/llm-operator.git
+    targetRevision: {{ .Values.operator.revision | quote }}
+    path: config
+    kustomize:
+      images:
+        - ghcr.io/sillykea/llm-operator:{{ .Values.operator.revision }}
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: llm-operator
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}
+{{- end }}

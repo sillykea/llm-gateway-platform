@@ -109,6 +109,14 @@ ingress:
   # ACM certificate ARN; when set, the ALB listens on 443 and redirects 80.
   certificateArn: ""
 
+# With llm-operator (docs/adr/0008), the config above becomes the base: the
+# chart writes it to <name>-base, the operator adds a provider and aliases
+# per model and writes <name>-config, and the gateway mounts that one.
+operatorConfig:
+  enabled: false
+  # Where the operator's vLLM pools run; the gateway may reach them on 8000.
+  inferenceNamespace: inference
+
 networkPolicy:
   enabled: true
   # VPC CIDR, so the ALB (which targets pod IPs) and Redis are reachable.

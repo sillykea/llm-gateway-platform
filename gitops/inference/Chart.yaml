@@ -1,0 +1,5 @@
+apiVersion: v2
+name: inference
+description: GPU NodePool and the models llm-operator serves (docs/adr/0008).
+type: application
+version: 0.1.0

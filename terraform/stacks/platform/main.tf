@@ -74,10 +74,21 @@ resource "helm_release" "root_app" {
               environment    = local.infra.environment
               repoURL        = var.gitops_repo_url
               targetRevision = var.gitops_revision
+              # try(): infra state written before GPU inference existed
+              # has no subnet, security group or Karpenter outputs.
               aws = {
-                region      = local.infra.region
-                clusterName = local.infra.cluster_name
-                vpcId       = local.infra.vpc_id
+                region              = local.infra.region
+                clusterName         = local.infra.cluster_name
+                vpcId               = local.infra.vpc_id
+                privateSubnetIds    = try(local.infra.private_subnet_ids, [])
+                nodeSecurityGroupId = try(local.infra.node_security_group_id, "")
+              }
+              inference = {
+                enabled = try(local.infra.gpu_inference_enabled, false)
+              }
+              karpenter = {
+                nodeRoleName = try(local.infra.karpenter_node_role_name, "")
+                queueName    = try(local.infra.karpenter_queue_name, "")
               }
               gateway = {
                 redisAddress    = local.infra.redis_address

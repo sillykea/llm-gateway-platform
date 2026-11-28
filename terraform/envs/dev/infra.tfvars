@@ -15,3 +15,7 @@ cache_replicas  = 0
 
 # public_endpoint_cidrs = ["203.0.113.10/32"]  # your IP, to use kubectl from home
 # admin_role_arns       = ["arn:aws:iam::<account>:role/<your-admin-role>"]
+
+# GPU inference: Karpenter, KEDA and llm-operator (docs/adr/0008). Off until
+# you want to pay for GPU nodes; with the pool at zero, they cost nothing.
+enable_gpu_inference = false
