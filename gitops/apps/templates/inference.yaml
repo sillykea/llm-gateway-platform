@@ -1,0 +1,28 @@
+{{- if .Values.inference.enabled }}
+# The GPU NodePool and the models to serve.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inference
+  namespace: argocd
+  annotations:
+    # After Karpenter (-1) and the operator (0), whose CRDs these use.
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: {{ .Values.repoURL }}
+    targetRevision: {{ .Values.targetRevision }}
+    path: gitops/inference
+    helm:
+      valuesObject:
+        clusterName: {{ .Values.aws.clusterName | quote }}
+        nodeRoleName: {{ .Values.karpenter.nodeRoleName | quote }}
+        subnetIds: {{ .Values.aws.privateSubnetIds | toJson }}
+        nodeSecurityGroupId: {{ .Values.aws.nodeSecurityGroupId | quote }}
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: {{ .Values.inference.namespace }}
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}
+{{- end }}

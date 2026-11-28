@@ -14,3 +14,5 @@ cache_node_type = "cache.t4g.small"
 cache_replicas  = 1
 
 # admin_role_arns = ["arn:aws:iam::<account>:role/<your-admin-role>"]
+
+enable_gpu_inference = false

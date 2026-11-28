@@ -63,3 +63,9 @@ variable "cache_node_type" {
 variable "cache_replicas" {
   type = number
 }
+
+variable "enable_gpu_inference" {
+  description = "Run self-hosted models on GPU nodes: installs Karpenter's AWS side here, and KEDA, Karpenter and llm-operator through Argo CD."
+  type        = bool
+  default     = false
+}

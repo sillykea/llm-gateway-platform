@@ -81,6 +81,7 @@ jobs:
               --set image.tag=ci --set externalSecret.sessionRemoteKey=s \
               --set externalSecret.syncRemoteKey=s --set externalSecret.usersRemoteKey=s
           done
+          helm lint gitops/inference --set nodeRoleName=ci-node-role
       - name: Render
         run: |
           mkdir -p rendered
@@ -104,10 +105,26 @@ jobs:
               --set aws.clusterName=llm-gateway-$env --set aws.vpcId=vpc-ci \
               --set gateway.redisAddress=redis:6379 --set gateway.secretName=llm-gateway/$env \
               > rendered/apps-$env.yaml
+            # GPU inference on (docs/adr/0008): the extra apps, the gateway
+            # reading the operator's config, and the NodePool and models.
+            helm template root gitops/apps -n argocd --set environment=$env \
+              --set aws.clusterName=llm-gateway-$env --set aws.vpcId=vpc-ci \
+              --set gateway.redisAddress=redis:6379 --set gateway.secretName=llm-gateway/$env \
+              --set inference.enabled=true --set karpenter.nodeRoleName=llm-gateway-$env-karpenter-node \
+              --set karpenter.queueName=llm-gateway-$env > rendered/apps-inference-$env.yaml
+            helm template llm-gateway charts/llm-gateway -n llm-gateway -f charts/llm-gateway/values-$env.yaml \
+              --set image.tag=ci --set externalSecret.remoteKey=llm-gateway/$env --set redisAddress=redis:6379 \
+              --set operatorConfig.enabled=true > rendered/gateway-operator-$env.yaml
+            helm template inference gitops/inference -n inference \
+              --set clusterName=llm-gateway-$env --set nodeRoleName=llm-gateway-$env-karpenter-node \
+              --set 'subnetIds={subnet-0a1,subnet-0b2}' --set nodeSecurityGroupId=sg-0c3 \
+              > rendered/inference-$env.yaml
           done
       - name: Validate against Kubernetes and CRD schemas
+        # LLMDeployment has no published schema; llm-operator's own CI
+        # validates its samples against the CRD.
         run: |
-          kubeconform -strict -summary -kubernetes-version 1.31.0 \
+          kubeconform -strict -summary -kubernetes-version 1.31.0 -skip LLMDeployment \
             -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             rendered/

@@ -133,3 +133,29 @@ module "lb_controller_pod_identity" {
     }
   }
 }
+
+# Karpenter launches GPU nodes for the inference pool on demand and removes
+# them when the pool scales to zero (docs/adr/0008). The module creates the
+# controller's Pod Identity role, the role GPU nodes run as, their EKS access
+# entry, and an SQS queue for spot interruption and rebalance notices.
+module "karpenter" {
+  source  = "terraform-aws-modules/eks/aws//modules/karpenter"
+  version = "~> 20.31"
+  count   = var.enable_karpenter ? 1 : 0
+
+  cluster_name          = module.eks.cluster_name
+  enable_v1_permissions = true
+
+  enable_pod_identity             = true
+  create_pod_identity_association = true
+  namespace                       = "kube-system"
+  service_account                 = "karpenter"
+
+  # A fixed name, so the EC2NodeClass in git can refer to it.
+  node_iam_role_use_name_prefix = false
+  node_iam_role_name            = "${var.cluster_name}-karpenter-node"
+  node_iam_role_additional_policies = {
+    # Session Manager instead of SSH for debugging a GPU node.
+    ssm = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  }
+}

@@ -1,0 +1,49 @@
+{{- if .Values.inference.enabled }}
+# Karpenter's chart is published to ECR Public as an OCI artifact, which
+# Argo CD needs declared as a repository.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-karpenter
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: karpenter
+  type: helm
+  url: public.ecr.aws/karpenter
+  enableOCI: "true"
+---
+# Launches GPU nodes when an inference pod is pending and removes them when
+# empty. Its IAM role, node role and interruption queue come from Terraform.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: karpenter
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: public.ecr.aws/karpenter
+    chart: karpenter
+    targetRevision: {{ .Values.charts.karpenter }}
+    helm:
+      valuesObject:
+        settings:
+          clusterName: {{ .Values.aws.clusterName | quote }}
+          interruptionQueue: {{ .Values.karpenter.queueName | quote }}
+        serviceAccount:
+          # Matches the Pod Identity association Terraform creates.
+          name: karpenter
+        controller:
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { memory: 1Gi }
+  {{- include "platform-apps.destination" . | nindent 2 }}
+    namespace: kube-system
+  {{- include "platform-apps.syncPolicy" . | nindent 2 }}
+{{- end }}

@@ -117,4 +117,10 @@ spec:
       volumes:
         - name: config
           configMap:
+            {{- if .Values.operatorConfig.enabled }}
+            # Written by llm-operator, which also rolls this Deployment
+            # when it changes.
+            name: {{ include "llm-gateway.fullname" . }}-config
+            {{- else }}
             name: {{ include "llm-gateway.fullname" . }}
+            {{- end }}

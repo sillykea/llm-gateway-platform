@@ -1,0 +1,32 @@
+# Filled in by the root app from Terraform outputs.
+clusterName: ""
+nodeRoleName: ""
+subnetIds: []
+nodeSecurityGroupId: ""
+
+nodePool:
+  # One 24 GB GPU per node: L4 (g6) first, A10G (g5) if L4 is short.
+  instanceFamilies: [g6, g5]
+  capacityTypes: [on-demand]
+  # Upper bound on GPUs the pool can hold, so a runaway scale-up has a cost ceiling.
+  gpuLimit: 4
+
+# One LLMDeployment each. See sillykea/llm-operator for every field.
+models:
+  - name: qwen-7b
+    spec:
+      # Apache-2.0 and not gated, so no Hugging Face token is needed.
+      model: Qwen/Qwen2.5-7B-Instruct
+      servedName: qwen2.5-7b
+      scaling:
+        minReplicas: 0
+        maxReplicas: 4
+      gateway:
+        # A new alias: chat-default and chat-private stay as the base config
+        # defines them until this pool has proven itself.
+        aliases: [chat-gpu]
+        fallback:
+          - { provider: openai, model: gpt-4o-mini }
+      cost:
+        gpuHourlyUSD: 0.98
+        monthlyBudgetUSD: 300
